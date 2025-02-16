@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import shutil
 
 import pandas as pd
 from docx import Document
@@ -32,8 +33,30 @@ class GetDataFromFiles:
         return get_docx_files(self.main_path)
     
     def run(self):
+        # перемещаем все файлы из подпапок в папке имени (если они есть) в одну папку
+        self.move_files_from_subfolders()
+        # читаем все файлы
         df = self.process_all_files()
         return df
+    
+    def move_files_from_subfolders(self)->None:
+        """ Перемещаем все файлы из возможных подпапок в папках год/фио в одну папку """
+        base_dir = Path(self.main_path)
+        
+        for fio_folder in base_dir.glob("*/*"):  # ищет папки в папках год/фио
+            if fio_folder.is_dir():
+                for docx_file in fio_folder.rglob("*.docx"):
+                    # Ensure it's inside a subfolder (not directly in fio_folder)
+                    if docx_file.parent != fio_folder:
+                        # Move file to the fio_folder
+                        target_path = fio_folder / docx_file.name
+                        logging.info(f"Перемещаем файл {docx_file} -> {target_path}")
+                        shutil.move(str(docx_file), str(target_path))
+                        
+        # обновляем пути до файлов
+        self.docx_files = self.get_files_paths()
+        return None
+        
     
     def process_all_files(self)->pd.DataFrame:
         """ В каждом файле выделяем нужную информацию. Часть информации берем из пути к файлу """

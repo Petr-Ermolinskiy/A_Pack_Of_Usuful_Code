@@ -1,2 +1,6 @@
 */.venv/*
+*/.vscode/*
+*/.idea/*
+*/.pytest_cache/*
+*pyc
 .Ds_Store
