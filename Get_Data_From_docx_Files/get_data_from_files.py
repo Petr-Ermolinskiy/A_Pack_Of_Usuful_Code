@@ -1,9 +1,10 @@
+import shutil
 import logging
 from pathlib import Path
-import shutil
 
 import pandas as pd
 from docx import Document
+import dateutil.parser as dparser
 
 
 logging.basicConfig(level=logging.INFO)
@@ -33,10 +34,15 @@ class GetDataFromFiles:
         return get_docx_files(self.main_path)
     
     def run(self):
+        # обновляем все пути до docx файлов
+        self.docx_files = self.get_files_paths()
         # перемещаем все файлы из подпапок в папке имени (если они есть) в одну папку
         self.move_files_from_subfolders()
         # читаем все файлы
         df = self.process_all_files()
+        # дополнительно обрабатываем датафрейм
+        df = df.sort_values(by=["Год", "Папка", "Название файла"], ascending=False).reset_index(drop=True)
+        df["Валидация по году"] = df.apply(lambda row: "да" if row["Дата"].split("-")[0] == row["Год"] else "нет", axis=1)
         return df
     
     def move_files_from_subfolders(self)->None:
@@ -64,11 +70,11 @@ class GetDataFromFiles:
         
         for i, path in enumerate(self.docx_files):
             year, fio, title = path.split("/")[-3:]
-            date = GetDataFromFiles.get_date_from_title(title)
             try:
+                date = GetDataFromFiles.get_date_from_title(title)
                 names_of_workers, experiment_info = GetDataFromFiles.process_one_file(path)
             except Exception as e:
-                logging.warning(f"Файл {path}::{e}")
+                logging.warning(f"Проблема с файлом {path}::{e}")
                 continue
             
             if not experiment_info and not names_of_workers:
@@ -101,4 +107,4 @@ class GetDataFromFiles:
     
     @staticmethod
     def get_date_from_title(path: str)->str:
-        return "-".join(path.split("-")[0:3])
+        return dparser.parse(path, fuzzy=True).strftime("%Y-%m-%d")
